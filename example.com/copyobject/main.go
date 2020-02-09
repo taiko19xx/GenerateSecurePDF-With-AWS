@@ -1,45 +1,45 @@
 package main
 
 import (
-	"github.com/aws/aws-lambda-go/lambda"
 	"context"
+	"github.com/aws/aws-lambda-go/lambda"
 
-	"example.com/modules/types/event"
 	"example.com/modules"
+	"example.com/modules/types/event"
 
 	"os"
-	
-    "github.com/aws/aws-sdk-go/aws"
-    "github.com/aws/aws-sdk-go/aws/session"
-    "github.com/aws/aws-sdk-go/service/s3"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func handleRequest(ctx context.Context, evnt event.Event) (event.Event, error) {
-    item := evnt.Path
-    newItem := modules.GenRndPDFName()
-    bucket := os.Getenv("BUCKET_NAME")
+	item := evnt.Path
+	newItem := modules.GenRndPDFName()
+	bucket := os.Getenv("BUCKET_NAME")
 
 	newItemObjectKey := "public/" + newItem
 
 	sess, _ := session.NewSession(&aws.Config{
-		Region: aws.String("ap-northeast-1")},
-	)
+		Region: aws.String("ap-northeast-1"),
+	})
 	svc := s3.New(sess)
 
 	input := &s3.CopyObjectInput{
-		Bucket: aws.String(bucket),
+		Bucket:     aws.String(bucket),
 		CopySource: aws.String(bucket + "/" + item),
-		Key: aws.String(newItemObjectKey),
+		Key:        aws.String(newItemObjectKey),
 	}
 
 	_, err := svc.CopyObject(input)
 	if err != nil {
-		return evnt,  err
+		return evnt, err
 	}
-	
+
 	resp := event.Event{
 		Email: evnt.Email,
-		Path: newItemObjectKey,
+		Path:  newItemObjectKey,
 	}
 
 	return resp, nil

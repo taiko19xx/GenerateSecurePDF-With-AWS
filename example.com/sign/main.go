@@ -1,24 +1,24 @@
 package main
 
 import (
-	"github.com/aws/aws-lambda-go/lambda"
 	"context"
+	"github.com/aws/aws-lambda-go/lambda"
 
-	"github.com/signintech/gopdf"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/signintech/gopdf"
 
-	"example.com/modules/types/event"
 	"example.com/modules"
 	"example.com/modules/downloader"
+	"example.com/modules/types/event"
 	"example.com/modules/uploader"
 
 	"os"
 )
 
 func handleRequest(ctx context.Context, evnt event.Event) (event.Event, error) {
-    item := evnt.Path
-    newItem := modules.GenRndPDFName()
-    bucket := os.Getenv("BUCKET_NAME")
+	item := evnt.Path
+	newItem := modules.GenRndPDFName()
+	bucket := os.Getenv("BUCKET_NAME")
 
 	newItemLocalPath := "/tmp/" + newItem
 	newItemObjectKey := "tmp/" + newItem
@@ -29,8 +29,8 @@ func handleRequest(ctx context.Context, evnt event.Event) (event.Event, error) {
 		return evnt, err
 	}
 
-    pdf := gopdf.GoPdf{}
-	pdf.Start(gopdf.Config{ PageSize: *gopdf.PageSizeA5 })
+	pdf := gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA5})
 	pdf.AddPage()
 	err = pdf.AddTTFFont("Tanuki", "./TanukiMagic.ttf")
 	if err != nil {
@@ -48,15 +48,15 @@ func handleRequest(ctx context.Context, evnt event.Event) (event.Event, error) {
 	inFiles := []string{itemPath, signFilePath}
 
 	api.MergeFile(inFiles, newItemLocalPath, nil)
-	
+
 	err = uploader.S3Upload(newItemLocalPath, bucket, newItemObjectKey)
-    if err != nil {
+	if err != nil {
 		return evnt, err
 	}
-	
+
 	resp := event.Event{
 		Email: evnt.Email,
-		Path: newItemObjectKey,
+		Path:  newItemObjectKey,
 	}
 
 	return resp, nil
