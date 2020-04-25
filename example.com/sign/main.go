@@ -13,6 +13,7 @@ import (
 	"example.com/modules/uploader"
 
 	"os"
+	"path/filepath"
 )
 
 func handleRequest(ctx context.Context, evnt event.Event) (event.Event, error) {
@@ -29,10 +30,16 @@ func handleRequest(ctx context.Context, evnt event.Event) (event.Event, error) {
 		return evnt, err
 	}
 
+	executablePath := ""
+	executablePath, err = os.Executable()
+	if err != nil {
+		return evnt, err
+	}
+
 	pdf := gopdf.GoPdf{}
 	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA5})
 	pdf.AddPage()
-	err = pdf.AddTTFFont("Tanuki", "./TanukiMagic.ttf")
+	err = pdf.AddTTFFont("Tanuki", filepath.Dir(executablePath) + "/TanukiMagic.ttf")
 	if err != nil {
 		return evnt, err
 	}
