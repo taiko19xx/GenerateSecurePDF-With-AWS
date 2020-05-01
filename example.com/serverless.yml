@@ -55,6 +55,48 @@ resources:
                     - Prefix: "public"
                       ExpirationInDays: 7
                       Status: Enabled
+        PDFBookBucketPolicy:
+            Type: AWS::S3::BucketPolicy
+            Properties:
+                Bucket: !Ref PDFBookBucket
+                PolicyDocument:
+                    Version: "2008-10-17"
+                    Id: "PolicyForCloudFrontPrivateContent"
+                    Statement:
+                        - Sid: 1
+                          Effect: "Allow"
+                          Principal: 
+                            CanonicalUser: !GetAtt PDFBookCloudFromtOriginAccessIdentity.S3CanonicalUserId
+                          Action: "s3:GetObject"
+                          Resource: 
+                            - !Join 
+                              - ""
+                              - - !GetAtt PDFBookBucket.Arn
+                                - "/*"
+        PDFBookCloudFromtOriginAccessIdentity:
+            Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+            Properties:
+                CloudFrontOriginAccessIdentityConfig:
+                    Comment: "PDFBookCloudFromtOriginAccessIdentity"
+        PDFBookCloudFront:
+            Type: AWS::CloudFront::Distribution
+            Properties:
+                DistributionConfig:
+                    Enabled: True
+                    DefaultCacheBehavior:
+                        ForwardedValues:
+                          QueryString: True
+                        TargetOriginId: "S3-secure-pdf-book-2020"
+                        ViewerProtocolPolicy: "redirect-to-https"
+                    Origins:
+                        - Id: "S3-secure-pdf-book-2020"
+                          DomainName: !GetAtt PDFBookBucket.DomainName
+                          OriginPath: "/public"
+                          S3OriginConfig:
+                              OriginAccessIdentity: !Join
+                                - ""
+                                - - "origin-access-identity/cloudfront/"
+                                  - !Ref PDFBookCloudFromtOriginAccessIdentity
     Outputs:
         PDFBookBucketName:
             Description: PDFBookBucketName
@@ -66,3 +108,18 @@ resources:
             Value: !GetAtt PDFBookBucket.Arn
             Export: 
                 Name: ${self:service}-PDFBookBucketArn
+        CopyobjectLambdaFunctionQualifiedArn:
+            Export:
+                Name: CopyobjectLambdaFunctionQualifiedArn
+        EncryptLambdaFunctionQualifiedArn:
+            Export:
+                Name: EncryptLambdaFunctionQualifiedArn
+        PropertyLambdaFunctionQualifiedArn:
+            Export:
+                Name: PropertyLambdaFunctionQualifiedArn
+        SignLambdaFunctionQualifiedArn:
+            Export:
+                Name: SignLambdaFunctionQualifiedArn
+        WatermarkLambdaFunctionQualifiedArn:
+            Export:
+                Name: WatermarkLambdaFunctionQualifiedArn
