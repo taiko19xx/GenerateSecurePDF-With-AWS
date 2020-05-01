@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: secure-pdf-book-2020 infrastructure
+
+Resources:
+    PDFBookStepFunctionsRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                - Effect: "Allow"
+                  Principal:
+                    Service:
+                    - "states.amazonaws.com"
+                  Action:
+                  - "sts:AssumeRole"
+            Policies:
+            - PolicyName: "InlinePolicy"
+              PolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                - Effect: "Allow"
+                  Action:
+                  - "lambda:InvokeFunction"
+                  Resource:
+                  - !ImportValue CopyobjectLambdaFunctionQualifiedArn
+                  - !ImportValue EncryptLambdaFunctionQualifiedArn
+                  - !ImportValue PropertyLambdaFunctionQualifiedArn
+                  - !ImportValue SignLambdaFunctionQualifiedArn
+                  - !ImportValue WatermarkLambdaFunctionQualifiedArn
+    PDFBookStepAPIGatewayToStepFunctionsRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                - Effect: "Allow"
+                  Principal:
+                    Service:
+                    - "apigateway.amazonaws.com"
+                  Action:
+                  - "sts:AssumeRole"
+            ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+            - "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
+    PDFBookStepFunctionsMachine:
+        Type: AWS::StepFunctions::StateMachine
+        Properties:
+            RoleArn: !GetAtt PDFBookStepFunctionsRole.Arn
+            DefinitionString: !Sub 
+            - |
+              {
+                  "Comment": "Flow for PDF",
+                  "StartAt": "watermark",
+                  "States": {
+                      "watermark": {
+                          "Type": "Task",
+                          "Resource": "${WatermarkLambdaFunctionQualifiedArn}",
+                          "Next": "sign"
+                      },
+                      "sign": {
+                          "Type": "Task",
+                          "Resource": "${SignLambdaFunctionQualifiedArn}",
+                          "Next": "property"
+                      },
+                      "property": {
+                          "Type": "Task",
+                          "Resource": "${PropertyLambdaFunctionQualifiedArn}",
+                          "Next": "encrypt"
+                      },
+                      "encrypt": {
+                          "Type": "Task",
+                          "Resource": "${EncryptLambdaFunctionQualifiedArn}",
+                          "Next": "copyobject"
+                      },
+                      "copyobject": {
+                          "Type": "Task",
+                          "Resource": "${CopyobjectLambdaFunctionQualifiedArn}",
+                          "End": true
+                      }
+                  }
+              }
+            - CopyobjectLambdaFunctionQualifiedArn: !ImportValue CopyobjectLambdaFunctionQualifiedArn
+              EncryptLambdaFunctionQualifiedArn: !ImportValue EncryptLambdaFunctionQualifiedArn
+              PropertyLambdaFunctionQualifiedArn: !ImportValue PropertyLambdaFunctionQualifiedArn
+              SignLambdaFunctionQualifiedArn: !ImportValue SignLambdaFunctionQualifiedArn
+              WatermarkLambdaFunctionQualifiedArn: !ImportValue WatermarkLambdaFunctionQualifiedArn
+    PDFBookRestApi:
+        Type: AWS::ApiGateway::RestApi
+        Properties:
+            Name: PDFBookRestApi
+    PDFBookRestApiResourceGenerate:
+        Type: AWS::ApiGateway::Resource
+        Properties:
+            ParentId: !GetAtt PDFBookRestApi.RootResourceId
+            PathPart: "generate"
+            RestApiId: !Ref PDFBookRestApi
+    PDFBookRestApiGeneratePOST:
+        Type: AWS::ApiGateway::Method
+        Properties:
+            AuthorizationType: NONE
+            HttpMethod: POST
+            Integration:
+                Credentials: !GetAtt PDFBookStepAPIGatewayToStepFunctionsRole.Arn
+                IntegrationHttpMethod: POST
+                IntegrationResponses:
+                    - StatusCode: 200
+                PassthroughBehavior: WHEN_NO_TEMPLATES
+                RequestTemplates:
+                  "application/json": !Sub |
+                    {
+                       "input": "{\"Email\": $util.escapeJavaScript($input.json('$.email')),\"path\": \"Book-master.pdf\"}",
+                       "name": $input.json('$.name'),
+                       "stateMachineArn": "${PDFBookStepFunctionsMachine}"
+                    }
+                Type: AWS
+                Uri: "arn:aws:apigateway:ap-northeast-1:states:action/StartExecution"
+            MethodResponses:
+                - StatusCode: 200
+                  ResponseModels:
+                    "application/json": Empty
+            ResourceId: !Ref PDFBookRestApiResourceGenerate
+            RestApiId: !Ref PDFBookRestApi
+    PDFBookRestApiResourceGenerateStatus:
+        Type: AWS::ApiGateway::Resource
+        Properties:
+            ParentId: !Ref PDFBookRestApiResourceGenerate
+            PathPart: "status"
+            RestApiId: !Ref PDFBookRestApi
+    PDFBookRestApiGenerateStatusPOST:
+        Type: AWS::ApiGateway::Method
+        Properties:
+            AuthorizationType: NONE
+            HttpMethod: POST
+            Integration:
+                Credentials: !GetAtt PDFBookStepAPIGatewayToStepFunctionsRole.Arn
+                IntegrationHttpMethod: POST
+                IntegrationResponses:
+                    - StatusCode: 200
+                      ResponseTemplates:
+                        "application/json": |
+                            {
+                                "output": $input.json('$.output'),
+                                "status": $input.json('$.status')
+                            }
+                Type: AWS
+                Uri: "arn:aws:apigateway:ap-northeast-1:states:action/DescribeExecution"
+            MethodResponses:
+                - StatusCode: 200
+                  ResponseModels:
+                    "application/json": Empty
+            ResourceId: !Ref PDFBookRestApiResourceGenerateStatus
+            RestApiId: !Ref PDFBookRestApi
+    PDFBookRestApiDeployment:
+        Type: AWS::ApiGateway::Deployment
+        DependsOn:
+        - PDFBookRestApiGeneratePOST
+        - PDFBookRestApiGenerateStatusPOST
+        Properties:
+            RestApiId: !Ref PDFBookRestApi
+            StageName: "v1"
