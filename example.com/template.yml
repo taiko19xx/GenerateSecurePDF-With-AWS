@@ -104,10 +104,12 @@ Resources:
                 Credentials: !GetAtt PDFBookStepAPIGatewayToStepFunctionsRole.Arn
                 IntegrationHttpMethod: POST
                 IntegrationResponses:
-                    - StatusCode: 200
+                - StatusCode: 200
+                  ResponseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
                 PassthroughBehavior: WHEN_NO_TEMPLATES
                 RequestTemplates:
-                  "application/json": !Sub |
+                  application/json: !Sub |
                     {
                        "input": "{\"Email\": $util.escapeJavaScript($input.json('$.email')),\"path\": \"Book-master.pdf\"}",
                        "name": $input.json('$.name'),
@@ -116,9 +118,39 @@ Resources:
                 Type: AWS
                 Uri: "arn:aws:apigateway:ap-northeast-1:states:action/StartExecution"
             MethodResponses:
+            - StatusCode: 200
+              ResponseModels:
+                application/json: 'Empty'
+              ResponseParameters:
+                 method.response.header.Access-Control-Allow-Origin: false
+            ResourceId: !Ref PDFBookRestApiResourceGenerate
+            RestApiId: !Ref PDFBookRestApi
+    PDFBookRestApiGenerateOPTIONS:
+        Type: AWS::ApiGateway::Method
+        Properties:
+            AuthorizationType: NONE
+            HttpMethod: OPTIONS
+            Integration:
+                IntegrationResponses:
                 - StatusCode: 200
-                  ResponseModels:
-                    "application/json": Empty
+                  ResponseParameters:
+                    method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                    method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                    method.response.header.Access-Control-Allow-Origin: "'*'"
+                  ResponseTemplates:
+                    application/json: ''
+                PassthroughBehavior: WHEN_NO_MATCH
+                RequestTemplates:
+                    application/json: '{"statusCode": 200}'
+                Type: MOCK
+            MethodResponses:
+            - StatusCode: 200
+              ResponseModels:
+                application/json: 'Empty'
+              ResponseParameters:
+                method.response.header.Access-Control-Allow-Headers: false
+                method.response.header.Access-Control-Allow-Methods: false
+                method.response.header.Access-Control-Allow-Origin: false
             ResourceId: !Ref PDFBookRestApiResourceGenerate
             RestApiId: !Ref PDFBookRestApi
     PDFBookRestApiResourceGenerateStatus:
@@ -136,19 +168,51 @@ Resources:
                 Credentials: !GetAtt PDFBookStepAPIGatewayToStepFunctionsRole.Arn
                 IntegrationHttpMethod: POST
                 IntegrationResponses:
-                    - StatusCode: 200
-                      ResponseTemplates:
-                        "application/json": |
-                            {
-                                "output": $input.json('$.output'),
-                                "status": $input.json('$.status')
-                            }
+                - StatusCode: 200
+                  ResponseParameters:
+                    method.response.header.Access-Control-Allow-Origin: "'*'"
+                  ResponseTemplates:
+                    application/json: |
+                        {
+                            "output": $input.json('$.output'),
+                            "status": $input.json('$.status')
+                        }
                 Type: AWS
                 Uri: "arn:aws:apigateway:ap-northeast-1:states:action/DescribeExecution"
             MethodResponses:
+            - StatusCode: 200
+              ResponseModels:
+                application/json: 'Empty'
+              ResponseParameters:
+                method.response.header.Access-Control-Allow-Origin: false
+            ResourceId: !Ref PDFBookRestApiResourceGenerateStatus
+            RestApiId: !Ref PDFBookRestApi
+    PDFBookRestApiGenerateStatusOPTIONS:
+        Type: AWS::ApiGateway::Method
+        Properties:
+            AuthorizationType: NONE
+            HttpMethod: OPTIONS
+            Integration:
+                IntegrationResponses:
                 - StatusCode: 200
-                  ResponseModels:
-                    "application/json": Empty
+                  ResponseParameters:
+                    method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                    method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                    method.response.header.Access-Control-Allow-Origin: "'*'"
+                  ResponseTemplates:
+                    application/json: ''
+                PassthroughBehavior: WHEN_NO_MATCH
+                RequestTemplates:
+                    application/json: '{"statusCode": 200}'
+                Type: MOCK
+            MethodResponses:
+            - StatusCode: 200
+              ResponseModels:
+                application/json: 'Empty'
+              ResponseParameters:
+                method.response.header.Access-Control-Allow-Headers: false
+                method.response.header.Access-Control-Allow-Methods: false
+                method.response.header.Access-Control-Allow-Origin: false
             ResourceId: !Ref PDFBookRestApiResourceGenerateStatus
             RestApiId: !Ref PDFBookRestApi
     PDFBookRestApiDeployment:
