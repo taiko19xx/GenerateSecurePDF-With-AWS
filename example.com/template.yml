@@ -219,7 +219,9 @@ Resources:
         Type: AWS::ApiGateway::Deployment
         DependsOn:
         - PDFBookRestApiGeneratePOST
+        - PDFBookRestApiGenerateOPTIONS
         - PDFBookRestApiGenerateStatusPOST
+        - PDFBookRestApiGenerateStatusOPTIONS
         Properties:
             RestApiId: !Ref PDFBookRestApi
             StageName: "v1"
