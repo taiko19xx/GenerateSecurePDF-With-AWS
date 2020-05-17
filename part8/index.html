@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PDF Generator</title>
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/uuid@latest/dist/umd/uuidv4.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">PDF Generator</a>
+  </nav>
+  
+  <main id="app" class="container">
+    <h5>Input</h5>
+    <div class="form-group">
+      <label for="exampleInputEmail1">Email</label>
+      <input v-model="email" type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+    </div>
+    <button class="btn btn-primary" @click="generate">Submit</button>
+    <h5>Link</h5>
+    <div class="link-base">
+      <div v-if="isLoading" class="spinner-border text-secondary" role="status"><span class="sr-only">Loading...</span></div>
+      <p v-if="isGenerated"><a :href="link">Download</a></p>
+    </div>
+  </main>
+
+  <script>
+    let currentIntervalID, currentExecutionArn;
+    // API Gatewayのエンドポイントを設定
+    const APIendpoint = '(API Gateway Endpoint)/generate';
+    // CloudFormationのエンドポイントを設定
+    const CFendpoint = '(CloudFront Endpoint)';
+    
+    const app = new Vue({
+      el: '#app',
+      data: {
+        link: '', // リンク先格納
+        email: '', // メールアドレス格納
+        isLoading: false, // ロード中か否か
+        isGenerated: false // 生成済みか否か
+      },
+      methods: {
+        generate: async function(event) {
+          let self = this;
+          
+          if (self.email != '') {
+            // 初期化
+            self.isLoading = true;
+            self.isGenerated = false;
+            self.link = '';
+            
+            // PDF生成実行  
+            const genRet = await axios.post(APIendpoint, {
+              email: self.email,
+              name: uuidv4()
+            });
+            
+            // ARN保存
+            currentExecutionArn = genRet.data.executionArn;
+            
+            // 5秒おきにリクエスト
+            currentIntervalID = window.setInterval(async function() {
+              // 状況確認
+              const stRet = await axios.post(APIendpoint + '/status', {
+                executionArn: currentExecutionArn
+              });
+              
+              // 生成されていればURLを生成
+              if (stRet.data.status = "SUCCEED") {
+                const output = JSON.parse(stRet.data.output);
+                
+                window.clearInterval(currentIntervalID);
+                
+                // データとフラグ変更
+                self.link = CFendpoint + output.path.replace('public', '');
+                self.isLoading = false;
+                self.isGenerated = true;
+              }
+              
+            }, 5000);
+          }
+        }
+      }
+    })
+  </script>
+</body>
+</html>
