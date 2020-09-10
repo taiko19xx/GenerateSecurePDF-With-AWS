@@ -21,7 +21,7 @@
 | example.com(直下のファイル) | 付録A/B                              | 管理用ファイルやMakefileなど                    |
 | example.com/copyobject      | 第7章 API化する                      | S3のオブジェクトコピー処理のmain.goとgo.mod     |
 | example.com/encrypt         | 第6章 暗号化する                     | 暗号化処理のmain.goとgo.mod                     |
-| example.com/modules         | 第2章 開発周りの準備をしよう         | example.com以下で利用する共通モジュール         |
+| example.com/modules         | 第2章 開発周りの準備をする           | example.com以下で利用する共通モジュール         |
 | example.com/property        | 第5章 カスタムプロパティーを追加する | カスタムプロパティー追加処理のmain.goとgo.mod   |
 | example.com/sign            | 第4章 文字列入りページを追加する     | 文字列入りページ追加処理のmain.goとgo.mod       |
 | example.com/watermark       | 第3章 ウォーターマークを追加する     | ウォーターマーク追加処理のmain.goとgo.mod       |
